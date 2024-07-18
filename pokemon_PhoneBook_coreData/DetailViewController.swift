@@ -11,6 +11,8 @@ import CoreData
 
 class DetailViewController: UIViewController {
     
+    var phoneBook: PhoneBook?
+    var isEditingMode = false
     var container: NSPersistentContainer!
     var randomImageURL: String?
     
@@ -60,39 +62,83 @@ class DetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
-        title = "연락처 추가"
+        
         detailConfigureUI()
         configureNavigationBar2()
         
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
         self.container = appDelegate.persistentContainer
+        
+        if isEditingMode {
+            configureForEditing()
+        } else {
+            title = "연락처 추가"
+        }
     }
     
-    @objc private func saveProfile() {
+    @objc func saveProfile() {
         guard let name = nameTextView.text, !name.isEmpty,
               let phoneNumber = phoneNumberTextView.text, !phoneNumber.isEmpty,
               let imageURL = randomImageURL else {
             showAlert(message: "모든 칸을 입력하세요")
             return
         }
-        createData(name: name, phoneNumber: phoneNumber, imageURL: imageURL)
+        
+        if isEditingMode {
+            updatePhoneBook()
+        } else {
+            createData(name: name, phoneNumber: phoneNumber, imageURL: imageURL)
+        }
+        
         navigationController?.popViewController(animated: true)
     }
     
-    private func showAlert(message: String) {
+    func configureForEditing() {
+        guard let phoneBook = phoneBook else { return }
+        title = phoneBook.name
+        nameTextView.text = phoneBook.name
+        phoneNumberTextView.text = phoneBook.phoneNumber
+        if let imageURLString = phoneBook.imageURL {
+            loadImage(from: imageURLString)
+            randomImageURL = imageURLString
+        }
+        saveButton.setTitle("수정", for: .normal)
+    }
+    
+    func updatePhoneBook() {
+        guard let phoneBook = phoneBook,
+              let name = nameTextView.text, !name.isEmpty,
+              let phoneNumber = phoneNumberTextView.text, !phoneNumber.isEmpty,
+              let imageURL = randomImageURL else {
+            showAlert(message: "모든 칸을 입력하세요")
+            return
+        }
+        
+        phoneBook.name = name
+        phoneBook.phoneNumber = phoneNumber
+        phoneBook.imageURL = imageURL
+        
+        do {
+            try container.viewContext.save()
+            print("업데이트 완료")
+        } catch {
+            print("업데이트 실패\(error)")
+        }
+    }
+    
+    func showAlert(message: String) {
         let alert = UIAlertController(title: "알림", message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "확인", style: .default))
         present(alert, animated: true, completion: nil)
     }
     
-    // 데이터 create
     func createData(name: String, phoneNumber: String, imageURL: String) {
         let context = container.viewContext
         let newPhoneBook = PhoneBook(context: context)
         newPhoneBook.name = name
         newPhoneBook.phoneNumber = phoneNumber
         newPhoneBook.imageURL = imageURL
-
+        
         do {
             try context.save()
             print("저장 완료")
@@ -100,9 +146,7 @@ class DetailViewController: UIViewController {
             print("\(error)")
         }
     }
-
     
-    // 데이터 read
     func readAllData() {
         let request: NSFetchRequest<PhoneBook> = PhoneBook.fetchRequest()
         
@@ -120,46 +164,6 @@ class DetailViewController: UIViewController {
             print("\(error)")
         }
     }
-    
-    // 데이터 update
-    
-//    func updateData(currentName: String, updateName: String, currentPhoneNumber: String, updatePhoneNumber: String) {
-//        // 데이터 수정
-//        let fetchRequest = PhoneBook.fetchRequest()
-//        fetchRequest.predicate = NSPredicate(format: "name == %@", currentName)
-//        fetchRequest.predicate = NSPredicate(format: "phoneNumber == %@", currentPhoneNumber)
-//        do {
-//            let result = try self.container.viewContext.fetch(fetchRequest)
-//            
-//            for data in result as [NSManagedObject] {
-//                data.setValue(updateName, forKey: PhoneBook.Key.name)
-//                data.setValue(updatePhoneNumber, forKey: PhoneBook.Key.phoneNumber)
-//                try self.container.viewContext.save()
-//                print("데이터 수정 완료")
-//            }
-//        } catch {
-//            print("데이터 수정 실패")
-//        }
-//    }
-//    
-//    // 데이터 delete
-//    func deleteData(name: String) {
-//        let fetchRequest = PhoneBook.fetchRequest()
-//        fetchRequest.predicate = NSPredicate(format: "name == %@", name)
-//        
-//        do {
-//            let result = try self.container.viewContext.fetch(fetchRequest)
-//            
-//            for data in result as [NSManagedObject] {
-//                self.container.viewContext.delete(data)
-//                print("삭제됨 : \(data)")
-//            }
-//            try self.container.viewContext.save()
-//            print("삭제완료")
-//        } catch {
-//            print("삭제실패\(error)")
-//        }
-//    }
     
     private func detailConfigureUI() {
         [saveButton,
@@ -227,7 +231,7 @@ class DetailViewController: UIViewController {
         }.resume()
     }
     
-    @objc private func loadRandomImage() {
+    @objc func loadRandomImage() {
         let randomId = Int.random(in: 1...1000)
         let urlString = "https://pokeapi.co/api/v2/pokemon/\(randomId)"
         

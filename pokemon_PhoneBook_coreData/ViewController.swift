@@ -45,7 +45,11 @@ class ViewController: UIViewController {
         
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
         self.container = appDelegate.persistentContainer
+        
+        listTableView.delegate = self
     }
+    
+
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -67,7 +71,7 @@ class ViewController: UIViewController {
         }
     }
     
-    //네비게이션 커스텀 설정
+    //네비게이션 커스텀
     private func configureNavigationBar() {
         let barButtonItem = UIBarButtonItem(customView: addButton)
         navigationItem.rightBarButtonItem = barButtonItem
@@ -107,6 +111,13 @@ class ViewController: UIViewController {
 extension ViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         80
+    }
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let selectedPhoneBook = phoneBooks[indexPath.row]
+        let detailViewController = DetailViewController()
+        detailViewController.phoneBook = selectedPhoneBook
+        detailViewController.isEditingMode = true
+        navigationController?.pushViewController(detailViewController, animated: true)
     }
 }
 
